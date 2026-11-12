@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Melomix - მუსიკების შემომთავაზებელი & ამრჩევი</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+GO:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- React 18 & Babel Standalone (ბრაუზერში პირდაპირი გაშვებისთვის) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Component Stylesheets -->
+  <link rel="stylesheet" href="./src/index.css">
+  <link rel="stylesheet" href="./src/App.css">
+  <link rel="stylesheet" href="./src/components/Navbar/Navbar.css">
+  <link rel="stylesheet" href="./src/components/AuthModal/AuthModal.css">
+  <link rel="stylesheet" href="./src/components/HeroBanner/HeroBanner.css">
+  <link rel="stylesheet" href="./src/components/MoodSelector/MoodSelector.css">
+  <link rel="stylesheet" href="./src/components/RecommendationBox/RecommendationBox.css">
+  <link rel="stylesheet" href="./src/components/MusicCard/MusicCard.css">
+  <link rel="stylesheet" href="./src/components/MusicList/MusicList.css">
+  <link rel="stylesheet" href="./src/components/Player/Player.css">
+  <link rel="stylesheet" href="./src/components/MusicModal/MusicModal.css">
+  <link rel="stylesheet" href="./src/components/StatsBar/StatsBar.css">
+
+  <style>
+    /* Bulletproof Fallback Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      font-family: 'Fira GO', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    /* Fallback loader before React mounts */
+    .initial-loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 1.2rem;
+      color: #cbd5e1;
+      text-align: center;
+      padding: 2rem;
+    }
+    .initial-spinner {
+      width: 52px;
+      height: 52px;
+      border: 4px solid rgba(139, 92, 246, 0.2);
+      border-top-color: #a855f7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="initial-loader">
+      <div class="initial-spinner"></div>
+      <h2 style="font-size: 1.4rem; font-weight: 700; color: #fff;">Melomix იტვირთება...</h2>
+      <p style="font-size: 0.9rem; color: #94a3b8;">მუსიკების შემომთავაზებელი & ამრჩევი პლატფორმა</p>
+    </div>
+  </div>
+
+  <!-- React Application Source Code -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // 1. მუსიკების გაფართოებული მონაცემთა ბაზა (26 კომპოზიცია)
+    const INITIAL_SONGS = [
+      {
+        id: 1,
+        title: "Blinding Lights",
+        artist: "The Weeknd",
+        album: "After Hours",
+        year: 2020,
+        genre: "Synthwave / Pop",
+        mood: "ენერგიული",
+        duration: "3:20",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        whyRecommended: "იდეალურია ენერგიის ასამაღლებლად და მანქანაში მოსასმენად — 80-იანების რეტრო სინთეზატორის რიტმები.",
+        description: "თანამედროვე პოპ-მუსიკის ერთ-ერთი ყველაზე გაყიდვადი და ენერგიული ჰიტი.",
+        isPopular: true
+      },
+      {
+        id: 2,
+        title: "Viva La Vida",
+        artist: "Coldplay",
+        album: "Viva la Vida",
+        year: 2008,
+        genre: "Alternative Rock",
+        mood: "შთამაგონებელი",
+        duration: "4:02",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        whyRecommended: "შთამაგონებელი სიმებიანი ინსტრუმენტები და ძლიერი მელოდია, რომელიც მოტივაციას შეგმატებთ.",
+        description: "სიმღერა, რომელმაც უამრავი გრემი მოიპოვა და როკ-კლასიკად იქცა.",
+        isPopular: true
+      },
+      {
+        id: 3,
+        title: "აფრენილა მტრედი",
+        artist: "ირაკლი ჩარკვიანი (მეფე)",
+        album: "აფრენილა მტრედი",
+        year: 1999,
+        genre: "ქართული როკი",
+        mood: "ქართული ჰიტები",
+        duration: "3:45",
+        rating: 5.0,
+        coverUrl: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+        whyRecommended: "ქართული ალტერნატიული მუსიკის შედევრი — ღრმა ემოციითა და უნიკალური პოეზიით.",
+        description: "ირაკლი ჩარკვიანის უკვდავი სიმღერა, რომელიც თაობებს აერთიანებს.",
+        isPopular: true
+      },
+      {
+        id: 4,
+        title: "Levitating",
+        artist: "Dua Lipa",
+        album: "Future Nostalgia",
+        year: 2020,
+        genre: "Nu-Disco / Pop",
+        mood: "წვეულება",
+        duration: "3:23",
+        rating: 4.8,
+        coverUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        whyRecommended: "ცოცხალი დისკო-ბითები, რომლებიც წამში კარგ ხასიათზე დაგაყენებთ.",
+        description: "ფანკისა და დისკოს იდეალური შერწყმა, რომელიც საცეკვაო მოედანს იპყრობს.",
+        isPopular: true
+      },
+      {
+        id: 5,
+        title: "Weightless",
+        artist: "Marconi Union",
+        album: "Ambient Transmissions",
+        year: 2011,
+        genre: "Ambient / Chillout",
+        mood: "ჩილი & რელაქსი",
+        duration: "8:08",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+        whyRecommended: "მეცნიერულად დამტკიცებული ერთ-ერთი ყველაზე დამამშვიდებელი მელოდია მსოფლიოში.",
+        description: "ხელს უწყობს გულისცემის დამშვიდებას და სტრესის მოხსნას მძიმე დღის შემდეგ.",
+        isPopular: false
+      },
+      {
+        id: 6,
+        title: "Deep Focus Lo-Fi",
+        artist: "Komorebi Beats",
+        album: "Study Session Vol. 1",
+        year: 2023,
+        genre: "Lo-Fi Hip Hop",
+        mood: "სწავლა & ფოკუსი",
+        duration: "2:54",
+        rating: 4.7,
+        coverUrl: "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+        whyRecommended: "არ შეიცავს ტექსტს, აქვს მშვიდი ტაქტი და იდეალურია მეცადინეობისა და კოდის წერის დროს.",
+        description: "რბილი ვინილის ჟღერადობა და თბილი აკორდები კონცენტრაციისთვის.",
+        isPopular: true
+      },
+      {
+        id: 7,
+        title: "ყვითელი ფოთლები",
+        artist: "გია ყანჩელი / ნანი ბრეგვაძე",
+        album: "ქართული კლასიკა",
+        year: 1985,
+        genre: "ქართული ესტრადა",
+        mood: "სევდიანი & მელანქოლია",
+        duration: "4:15",
+        rating: 5.0,
+        coverUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        whyRecommended: "შემოდგომის წვიმიანი დღეებისთვის განკუთვნილი გულისამაჩუყებელი ქართული მელოდია.",
+        description: "ლეგენდარული კომპოზიტორის გია ყანჩელის ემოციური ჰანგები.",
+        isPopular: true
+      },
+      {
+        id: 8,
+        title: "Believer",
+        artist: "Imagine Dragons",
+        album: "Evolve",
+        year: 2017,
+        genre: "Alt-Rock / Pop",
+        mood: "ენერგიული",
+        duration: "3:24",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        whyRecommended: "მძლავრი ბარაბნები და ვოკალი — შესანიშნავია ვარჯიშის ან დილის მოტივაციისთვის.",
+        description: "გლობალური ჰიტი შეუპოვრობასა და სირთულეების დაძლევაზე.",
+        isPopular: true
+      },
+      {
+        id: 9,
+        title: "Bohemian Rhapsody",
+        artist: "Queen",
+        album: "A Night at the Opera",
+        year: 1975,
+        genre: "Classic Rock",
+        mood: "როკი & დრაივი",
+        duration: "5:55",
+        rating: 5.0,
+        coverUrl: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+        whyRecommended: "როკ-მუსიკის ისტორიაში ერთ-ერთი ყველაზე გრანდიოზული კომპოზიცია.",
+        description: "ოპერის, ბალადისა და მძიმე როკის დაუჯერებელი შერწყმა ფრედი მერკურის მიერ.",
+        isPopular: true
+      },
+      {
+        id: 10,
+        title: "Sunset Lover",
+        artist: "Petit Biscuit",
+        album: "Presence",
+        year: 2017,
+        genre: "Chill Electronic",
+        mood: "ჩილი & რელაქსი",
+        duration: "3:57",
+        rating: 4.8,
+        coverUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        whyRecommended: "ზღვის სანაპიროსა და მზის ჩასვლის რომანტიკული ატმოსფერო მსუბუქი ბითებით.",
+        description: "საფრანგეთში შექმნილი ელექტრონული მელოდია, რომელმაც მილიონობით ადამიანი მოხიბლა.",
+        isPopular: false
+      },
+      {
+        id: 11,
+        title: "თბილისო",
+        artist: "რევაზ ლაღიძე / ანსამბლი რუსთავი",
+        album: "თბილისური სიმღერები",
+        year: 1959,
+        genre: "ქართული კლასიკა",
+        mood: "ქართული ჰიტები",
+        duration: "3:40",
+        rating: 5.0,
+        coverUrl: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+        whyRecommended: "საქართველოს დედაქალაქის არაოფიციალური ჰიმნი, სავსე სითბოთი და ნოსტალგიით.",
+        description: "ქართული მუსიკალური მემკვიდრეობის გამორჩეული ნიმუში.",
+        isPopular: true
+      },
+      {
+        id: 12,
+        title: "Can't Stop The Feeling!",
+        artist: "Justin Timberlake",
+        album: "Trolls Soundtrack",
+        year: 2016,
+        genre: "Dance-Pop",
+        mood: "წვეულება",
+        duration: "3:56",
+        rating: 4.7,
+        coverUrl: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+        whyRecommended: "პოზიტიური მუხტი, რომელიც მაშინვე გაგიჩენთ ცეკვისა და მოძრაობის სურვილს.",
+        description: "უმაღლესი განწყობის მატარებელი მსოფლიო ჰიტი.",
+        isPopular: true
+      },
+      {
+        id: 13,
+        title: "ნამგალა",
+        artist: "ნიაზ დიასამიძე & 33ა",
+        album: "გზა",
+        year: 2005,
+        genre: "ქართული ფოლკ-როკი",
+        mood: "ქართული ჰიტები",
+        duration: "4:12",
+        rating: 5.0,
+        coverUrl: "https://images.unsplash.com/photo-1445985543470-41fdd5c31447?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        whyRecommended: "ქართული ფანდურისა და როკ-რიტმების უნიკალური სინთეზი — გულწრფელი და მელოდიური.",
+        description: "ნიაზ დიასამიძის ერთ-ერთი ყველაზე ცნობილი და საყვარელი სიმღერა.",
+        isPopular: true
+      },
+      {
+        id: 14,
+        title: "Birds of a Feather",
+        artist: "Billie Eilish",
+        album: "Hit Me Hard and Soft",
+        year: 2024,
+        genre: "Indie Pop",
+        mood: "ჩილი & რელაქსი",
+        duration: "3:16",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        whyRecommended: "ნაზი ვოკალი და თბილი გიტარის აკორდები, რომლებიც სიმშვიდეს მოგგვრით.",
+        description: "ბილი აილიშის 2024 წლის უდიდესი გლობალური ჰიტი სიყვარულსა და ერთგულებაზე.",
+        isPopular: true
+      },
+      {
+        id: 15,
+        title: "Get Lucky",
+        artist: "Daft Punk ft. Pharrell Williams",
+        album: "Random Access Memories",
+        year: 2013,
+        genre: "Funk / Disco",
+        mood: "წვეულება",
+        duration: "4:08",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+        whyRecommended: "ნაილ როჯერსის შეუდარებელი ფანკ-გიტარა და ცეკვის განწყობა ნებისმიერ დროს.",
+        description: "გრემის მრავალგზის მფლობელი დისკო-ჰიმნი.",
+        isPopular: true
+      },
+      {
+        id: 16,
+        title: "Do I Wanna Know?",
+        artist: "Arctic Monkeys",
+        album: "AM",
+        year: 2013,
+        genre: "Indie Rock",
+        mood: "როკი & დრაივი",
+        duration: "4:32",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        whyRecommended: "მძიმე, დაუვიწყარი გიტარის რიფი და ღამის მისტიკური განწყობა.",
+        description: "21-ე საუკუნის ინდი-როკის ერთ-ერთი ყველაზე ცნობადი კომპოზიცია.",
+        isPopular: true
+      },
+      {
+        id: 17,
+        title: "Time (Inception)",
+        artist: "Hans Zimmer",
+        album: "Inception Soundtrack",
+        year: 2010,
+        genre: "Cinematic / Ambient",
+        mood: "სწავლა & ფოკუსი",
+        duration: "4:35",
+        rating: 5.0,
+        coverUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+        whyRecommended: "თანდათანობით მზარდი სიმებიანი მელოდია, რომელიც მაქსიმალურ კონცენტრაციას გჩუქნით.",
+        description: "ჰანს ციმერის კინოშედევრი, რომელიც ღრმა ფიქრსა და მუშაობაში გეხმარებათ.",
+        isPopular: true
+      },
+      {
+        id: 18,
+        title: "Uptown Funk",
+        artist: "Mark Ronson ft. Bruno Mars",
+        album: "Uptown Special",
+        year: 2014,
+        genre: "Funk / Soul",
+        mood: "ენერგიული",
+        duration: "4:30",
+        rating: 4.8,
+        coverUrl: "https://images.unsplash.com/photo-1520523839898-507128254c03?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+        whyRecommended: "ფეთქებადი ენერგია, ჩასაბერი ინსტრუმენტები და სუფთა მხიარულება.",
+        description: "მსოფლიო ჩარტების რეკორდსმენი ფანკ-სიმღერა.",
+        isPopular: true
+      },
+      {
+        id: 19,
+        title: "თუ გამოვა",
+        artist: "მგზავრები",
+        album: "მე მოვიგონე",
+        year: 2011,
+        genre: "ქართული ინდი / ფოლკი",
+        mood: "ქართული ჰიტები",
+        duration: "3:30",
+        rating: 4.8,
+        coverUrl: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        whyRecommended: "თბილი ქართული განწყობა, გიტარა და გულწრფელი მეგობრული ატმოსფერო.",
+        description: "ჯგუფ მგზავრების ერთ-ერთი ყველაზე მზიანი სიმღერა.",
+        isPopular: true
+      },
+      {
+        id: 20,
+        title: "Someone Like You",
+        artist: "Adele",
+        album: "21",
+        year: 2011,
+        genre: "Soul / Pop",
+        mood: "სევდიანი & მელანქოლია",
+        duration: "4:45",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        whyRecommended: "ემოციური ფორტეპიანო და ადელის შეუდარებელი ვოკალი მელანქოლიური საღამოებისთვის.",
+        description: "სევდიანი ბალადა, რომელმაც მილიონობით ადამიანის გული დაიპყრო.",
+        isPopular: true
+      },
+      {
+        id: 21,
+        title: "Nuvole Bianche",
+        artist: "Ludovico Einaudi",
+        album: "Una Mattina",
+        year: 2004,
+        genre: "Neo-Classical",
+        mood: "სწავლა & ფოკუსი",
+        duration: "5:57",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1520523839898-507128254c03?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+        whyRecommended: "მშვიდი, ჰარმონიული ფორტეპიანოს აკორდები კითხვისა და სწავლის დროს სიმშვიდისთვის.",
+        description: "იტალიელი კომპოზიტორის ლუდოვიკო ეინაუდის საკულტო ნაწარმოები.",
+        isPopular: false
+      },
+      {
+        id: 22,
+        title: "Thunderstruck",
+        artist: "AC/DC",
+        album: "The Razors Edge",
+        year: 1990,
+        genre: "Hard Rock",
+        mood: "როკი & დრაივი",
+        duration: "4:52",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        whyRecommended: "ლეგენდარული გიტარის შესავალი, რომელიც მყისიერ ადრენალინს გჩუქნით.",
+        description: "მძიმე როკის მარადიული კლასიკა შეუდარებელი ენერგიით.",
+        isPopular: true
+      },
+      {
+        id: 23,
+        title: "დამიბრუნდი",
+        artist: "სტეფანე",
+        album: "სინგლი",
+        year: 2018,
+        genre: "ქართული პოპი",
+        mood: "ქართული ჰიტები",
+        duration: "3:35",
+        rating: 4.8,
+        coverUrl: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+        whyRecommended: "თანამედროვე ქართული პოპ-ჟღერადობა, ლამაზი მელოდია და გემოვნებიანი არანჟირება.",
+        description: "სტეფანეს ერთ-ერთი ყველაზე წარმატებული და პოპულარული ჰიტი.",
+        isPopular: true
+      },
+      {
+        id: 24,
+        title: "Sunflower",
+        artist: "Post Malone & Swae Lee",
+        album: "Spider-Man: Into the Spider-Verse",
+        year: 2018,
+        genre: "Melodic Hip-Hop",
+        mood: "ჩილი & რელაქსი",
+        duration: "2:38",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+        whyRecommended: "მსუბუქი, მზიანი და უდარდელი მელოდია, რომელიც ნებისმიერ დღეს გაალამაზებს.",
+        description: "მსოფლიო სუპერჰიტი ანიმაციიდან 'ადამიანი-ობობა'.",
+        isPopular: true
+      },
+      {
+        id: 25,
+        title: "Lose Yourself",
+        artist: "Eminem",
+        album: "8 Mile Soundtrack",
+        year: 2002,
+        genre: "Hip-Hop",
+        mood: "ენერგიული",
+        duration: "5:26",
+        rating: 5.0,
+        coverUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        whyRecommended: "უმაღლესი მოტივაცია და შეუპოვრობა — 'You only get one shot, do not miss your chance to blow'.",
+        description: "ოსკაროსანი ჰიპ-ჰოპ ჰიმნი, რომელსაც ანალოგი არ მოეძებნება.",
+        isPopular: true
+      },
+      {
+        id: 26,
+        title: "სიყვარულის დროა",
+        artist: "ლელა წურწუმია",
+        album: "საუკეთესო ჰიტები",
+        year: 2006,
+        genre: "ქართული საცეკვაო",
+        mood: "წვეულება",
+        duration: "3:48",
+        rating: 4.9,
+        coverUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        whyRecommended: "ქართული წვეულებების განუყოფელი ენერგიული ჰიტი, რომელიც ყველას აცეკვებს.",
+        description: "ლელა წურწუმიას საკულტო საცეკვაო ჰიტი.",
+        isPopular: true
+      }
+    ];
+
+    const MOOD_CATEGORIES = [
+      { id: "all", label: "ყველა მუსიკა", icon: "🎵" },
+      { id: "popular", label: "ტოპ ჰიტები", icon: "🔥" },
+      { id: "ენერგიული", label: "ენერგიული", icon: "⚡" },
+      { id: "ჩილი & რელაქსი", label: "ჩილი & რელაქსი", icon: "☕" },
+      { id: "სწავლა & ფოკუსი", label: "სწავლა / ფოკუსი", icon: "📚" },
+      { id: "როკი & დრაივი", label: "როკი & დრაივი", icon: "🎸" },
+      { id: "ქართული ჰიტები", label: "ქართული ჰიტები", icon: "🇬🇪" },
+      { id: "წვეულება", label: "წვეულება & ცეკვა", icon: "🎉" },
+      { id: "სევდიანი & მელანქოლია", label: "სევდიანი", icon: "🌧️" }
+    ];
+
+    // API სერვისი (Promise)
+    const fetchSongsApi = async (category = "all", searchQuery = "") => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          let filtered = [...INITIAL_SONGS];
+          if (category === "popular") {
+            filtered = filtered.filter((s) => s.isPopular);
+          } else if (category !== "all") {
+            filtered = filtered.filter((s) => s.mood === category || s.genre.toLowerCase().includes(category.toLowerCase()));
+          }
+          if (searchQuery.trim() !== "") {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter((s) =>
+              s.title.toLowerCase().includes(query) ||
+              s.artist.toLowerCase().includes(query) ||
+              s.genre.toLowerCase().includes(query)
+            );
+          }
+          resolve({ status: 200, data: filtered });
+        }, 300);
+      });
+    };
+
+    const getSmartRecommendationApi = async (preferredMood = null) => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          let pool = INITIAL_SONGS;
+          if (preferredMood && preferredMood !== "all") {
+            const matching = INITIAL_SONGS.filter((s) => s.mood === preferredMood);
+            if (matching.length > 0) pool = matching;
+          }
+          const chosen = pool[Math.floor(Math.random() * pool.length)];
+          resolve({ status: 200, recommendedSong: chosen });
+        }, 250);
+      });
+    };
+
+    // 2. კომპონენტი: Navbar (Sign In & Log In ღილაკებით)
+    function Navbar({ activeTab, setActiveTab, searchQuery, setSearchQuery, favoritesCount, user, onOpenLogin, onOpenSignIn, onLogout }) {
+      return (
+        <header className="navbar">
+          <div className="nav-brand" onClick={() => setActiveTab('home')}>
+            <div className="brand-icon">🎧</div>
+            <div className="brand-info">
+              <h1>Melomix</h1>
+              <p>მუსიკის შემომთავაზებელი & ამრჩევი</p>
+            </div>
+          </div>
+
+          <div className="nav-search">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="მოძებნე სიმღერა, შემსრულებელი..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="clear-search" onClick={() => setSearchQuery('')}>✕</button>
+            )}
+          </div>
+
+          <nav>
+            <ul className="nav-links">
+              <li>
+                <button
+                  className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('home')}
+                >
+                  <span>🏠</span>
+                  <span className="label">მთავარი</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  className={`nav-btn ${activeTab === 'recommender' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('recommender')}
+                >
+                  <span>✨</span>
+                  <span className="label">რეკომენდატორი</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  className={`nav-btn ${activeTab === 'favorites' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('favorites')}
+                >
+                  <span>❤️</span>
+                  <span className="label">რჩეულები</span>
+                  {favoritesCount > 0 && <span className="fav-badge">{favoritesCount}</span>}
+                </button>
+              </li>
+              <li>
+                <button
+                  className={`nav-btn ${activeTab === 'stats' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('stats')}
+                >
+                  <span>📊</span>
+                  <span className="label">სტატისტიკა</span>
+                </button>
+              </li>
+            </ul>
+          </nav>
+
+          {/* მარჯვენა მხარე: Log In & Sign In */}
+          <div className="nav-auth-group">
+            {user ? (
+              <div className="user-profile-badge">
+                <span>{user.avatar || '👤'}</span>
+                <span className="user-name">{user.name}</span>
+                <button className="btn-logout" onClick={onLogout} title="გამოსვლა">(გასვლა)</button>
+              </div>
+            ) : (
+              <>
+                <button className="btn-auth-login" onClick={onOpenLogin}>Log In</button>
+                <button className="btn-auth-signin" onClick={onOpenSignIn}>Sign In</button>
+              </>
+            )}
+          </div>
+        </header>
+      );
+    }
+
+    // 3. კომპონენტი: AuthModal (Sign In / Log In მოდალი)
+    function AuthModal({ isOpen, initialMode = 'login', onClose, onAuthSuccess }) {
+      const [mode, setMode] = useState(initialMode);
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [name, setName] = useState('');
+
+      useEffect(() => { setMode(initialMode); }, [initialMode]);
+      useEffect(() => {
+        const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+        if (isOpen) window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+      }, [isOpen, onClose]);
+
+      if (!isOpen) return null;
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        const displayName = mode === 'signin' ? (name || 'მომხმარებელი') : (email.split('@')[0] || 'მომხმარებელი');
+        onAuthSuccess({ name: displayName, email: email || 'user@melomix.ge', avatar: '🎧' });
+        onClose();
+      };
+
+      return (
+        <div className="auth-overlay" onClick={onClose}>
+          <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="auth-close-btn" onClick={onClose}>✕</button>
+            <div className="auth-header">
+              <div className="auth-header-icon">🎵</div>
+              <h3>{mode === 'login' ? 'სისტემაში შესვლა' : 'ანგარიშის შექმნა'}</h3>
+              <p>{mode === 'login' ? 'შედით Melomix-ში თქვენი რჩეული მუსიკების შესანახად' : 'დარეგისტრირდით და მიიღეთ პერსონალური რეკომენდაციები'}</p>
+            </div>
+
+            <div className="auth-tabs">
+              <button
+                type="button"
+                className={`auth-tab-btn ${mode === 'login' ? 'active' : ''}`}
+                onClick={() => setMode('login')}
+              >
+                Log In
+              </button>
+              <button
+                type="button"
+                className={`auth-tab-btn ${mode === 'signin' ? 'active' : ''}`}
+                onClick={() => setMode('signin')}
+              >
+                Sign In
+              </button>
+            </div>
+
+            <form className="auth-form" onSubmit={handleSubmit}>
+              {mode === 'signin' && (
+                <div className="form-group">
+                  <label>თქვენი სახელი</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="მაგ: ნათია"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+              <div className="form-group">
+                <label>ელ-ფოსტა</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>პაროლი</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <button type="submit" className="auth-submit-btn">
+                {mode === 'login' ? 'Log In ➔' : 'Sign In ➔'}
+              </button>
+            </form>
+            <p className="demo-account-hint">💡 შეგიძლიათ შეიყვანოთ ნებისმიერი სატესტო მონაცემი</p>
+          </div>
+        </div>
+      );
+    }
+
+    // 4. კომპონენტი: HeroBanner
+    function HeroBanner({ onFindRecommendation, onSelectPopular, onSurpriseMe }) {
+      return (
+        <section className="hero-banner">
+          <div className="hero-glow"></div>
+          <div className="hero-content">
+            <div className="hero-tag">
+              <span>✨</span> მუსიკალური ინტელექტი & პერსონალური რეკომენდაციები
+            </div>
+            <h2 className="hero-title">
+              არ იცი რა მოუსმინო? <br />
+              <span className="highlight">აარჩიე იდეალური მუსიკა</span> შენი განწყობისთვის
+            </h2>
+            <p className="hero-description">
+              Melomix შემოგთავაზებს ყველაზე პოპულარულ და შთამაგონებელ სიმღერებს.
+              აირჩიე განწყობა ან მოითხოვე ჭკვიანი რეკომენდაცია!
+            </p>
+            <div className="hero-actions">
+              <button className="btn-primary" onClick={onFindRecommendation}>
+                <span>🪄</span> მირჩიე მუსიკა
+              </button>
+              <button className="btn-secondary" onClick={onSelectPopular}>
+                <span>🔥</span> ტოპ ჰიტები
+              </button>
+              <button className="btn-secondary" onClick={onSurpriseMe}>
+                <span>🎲</span> გამაკვირვე
+              </button>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // 5. კომპონენტი: MoodSelector (.map() მეთოდით)
+    function MoodSelector({ categories, selectedCategory, onSelectCategory }) {
+      return (
+        <section className="mood-selector">
+          <div className="section-header">
+            <h3 className="section-title"><span>🎧</span> რა განწყობაზე ხარ დღეს?</h3>
+            <span className="section-subtitle">აირჩიე კატეგორია რეკომენდაციისთვის</span>
+          </div>
+          <div className="mood-chips-container">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                className={`mood-chip ${selectedCategory === cat.id ? 'active' : ''}`}
+                onClick={() => onSelectCategory(cat.id)}
+              >
+                <span className="mood-icon">{cat.icon}</span>
+                <span>{cat.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    // 6. კომპონენტი: RecommendationBox
+    function RecommendationBox({ song, isPlaying, currentTrack, onPlay, onRefresh, isFavorite, onToggleFavorite, onViewDetails, loading }) {
+      if (!song) return null;
+      const isCurrentSongPlaying = currentTrack?.id === song.id && isPlaying;
+
+      return (
+        <div className="recommendation-box">
+          <div className="rec-header">
+            <div className="rec-badge-group">
+              <span className="rec-badge"><span>✨</span> ჭკვიანი რეკომენდაცია</span>
+              <span className="rec-timestamp">შერჩეულია სპეციალურად თქვენთვის</span>
+            </div>
+            <button className="btn-shuffle" onClick={onRefresh} disabled={loading}>
+              <span>🔄</span> <span>{loading ? 'არჩევა...' : 'სხვა რეკომენდაცია'}</span>
+            </button>
+          </div>
+
+          <div className="rec-card-body">
+            <div className="rec-cover-wrapper" onClick={() => onPlay(song)}>
+              <img src={song.coverUrl} alt={song.title} className="rec-cover-img" />
+              <div className={`rec-play-overlay ${isCurrentSongPlaying ? 'active' : ''}`}>
+                <div className="rec-play-icon">{isCurrentSongPlaying ? '⏸' : '▶'}</div>
+              </div>
+            </div>
+
+            <div className="rec-info">
+              <h4 className="rec-title">{song.title}</h4>
+              <p className="rec-artist">{song.artist} • {song.album} ({song.year})</p>
+              <div className="rec-reason">
+                <strong>💡 რატომ მოგეწონებათ:</strong> {song.whyRecommended}
+              </div>
+              <div className="rec-meta-tags">
+                <span className="meta-pill">🎭 {song.mood}</span>
+                <span className="meta-pill">🎸 {song.genre}</span>
+                <span className="meta-pill">⏱ {song.duration}</span>
+                <span className="meta-pill">⭐ {song.rating}/5.0</span>
+              </div>
+            </div>
+
+            <div className="rec-actions">
+              <button
+                className={`btn-icon-rec favorite ${isFavorite ? 'active' : ''}`}
+                onClick={() => onToggleFavorite(song.id)}
+              >
+                {isFavorite ? '❤️' : '🤍'}
+              </button>
+              <button className="btn-icon-rec" onClick={() => onViewDetails(song)}>ℹ️</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 7. კომპონენტი: MusicCard
+    function MusicCard({ song, isCurrent, isPlaying, isFavorite, onPlay, onToggleFavorite, onViewDetails }) {
+      const isCurrentlyPlaying = isCurrent && isPlaying;
+      return (
+        <article className={`music-card ${isCurrentlyPlaying ? 'playing' : ''}`}>
+          <div className="card-cover-container">
+            <img src={song.coverUrl} alt={song.title} className="card-img" />
+            <button
+              className={`fav-float-btn ${isFavorite ? 'active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite(song.id); }}
+            >
+              {isFavorite ? '❤️' : '🤍'}
+            </button>
+            <div className={`card-overlay ${isCurrentlyPlaying ? 'active' : ''}`}>
+              <button className="card-play-btn" onClick={() => onPlay(song)}>
+                {isCurrentlyPlaying ? '⏸' : '▶'}
+              </button>
+            </div>
+          </div>
+          <div className="card-body">
+            <div className="card-header-row">
+              <h4 className="card-title">{song.title}</h4>
+            </div>
+            <p className="card-artist">{song.artist}</p>
+            <div className="card-tags">
+              <span className="tag-badge mood">✨ {song.mood}</span>
+              <span className="tag-badge">{song.genre}</span>
+            </div>
+            <div className="card-footer">
+              <span>⏱ {song.duration}</span>
+              <span>⭐ {song.rating}</span>
+              <button className="card-details-link" onClick={() => onViewDetails(song)}>დეტალები ➔</button>
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    // 8. კომპონენტი: MusicList (.map() მეთოდით)
+    function MusicList({ songs, currentTrack, isPlaying, favorites, onPlaySong, onToggleFavorite, onViewDetails, loading, title, onResetFilters }) {
+      return (
+        <section className="music-list-section">
+          <div className="list-header">
+            <h3 className="list-title"><span>🎵</span> {title}</h3>
+            <span className="list-count">სულ: {songs.length} კომპოზიცია</span>
+          </div>
+
+          {loading ? (
+            <div className="loading-container">
+              <div className="spinner"></div>
+              <p>მუსიკების ბაზა იტვირთება API-დან...</p>
+            </div>
+          ) : songs.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">🔍</div>
+              <h4 className="empty-title">მუსიკა ვერ მოიძებნა</h4>
+              <p className="empty-desc">სცადეთ სხვა საძიებო სიტყვა ან შეცვალეთ განწყობა.</p>
+              {onResetFilters && (
+                <button className="btn-reset" onClick={onResetFilters}>ყველა მუსიკის ნახვა</button>
+              )}
+            </div>
+          ) : (
+            <div className="music-grid">
+              {songs.map((song) => (
+                <MusicCard
+                  key={song.id}
+                  song={song}
+                  isCurrent={currentTrack?.id === song.id}
+                  isPlaying={isPlaying}
+                  isFavorite={favorites.includes(song.id)}
+                  onPlay={onPlaySong}
+                  onToggleFavorite={onToggleFavorite}
+                  onViewDetails={onViewDetails}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      );
+    }
+
+    // 9. კომპონენტი: MusicModal
+    function MusicModal({ song, onClose, isPlaying, currentTrack, onPlay, isFavorite, onToggleFavorite }) {
+      useEffect(() => {
+        const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+      }, [onClose]);
+
+      if (!song) return null;
+      const isCurrentSongPlaying = currentTrack?.id === song.id && isPlaying;
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={onClose}>✕</button>
+            <div className="modal-header-section">
+              <img src={song.coverUrl} alt={song.title} className="modal-cover-img" />
+              <div className="modal-meta-info">
+                <h3 className="modal-song-title">{song.title}</h3>
+                <p className="modal-song-artist">{song.artist} • {song.album} ({song.year})</p>
+                <div className="modal-tags">
+                  <span className="modal-tag">🎭 {song.mood}</span>
+                  <span className="modal-tag">🎸 {song.genre}</span>
+                  <span className="modal-tag">⏱ {song.duration}</span>
+                  <span className="modal-tag">⭐ {song.rating} / 5.0</span>
+                </div>
+              </div>
+            </div>
+            <div className="modal-body-section">
+              <div className="info-block">
+                <h6>💡 რატომ გირჩევთ ამ მუსიკას:</h6>
+                <p>{song.whyRecommended}</p>
+              </div>
+              <div className="info-block">
+                <h6>📖 კომპოზიციის შესახებ:</h6>
+                <p>{song.description}</p>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-modal-play" onClick={() => onPlay(song)}>
+                <span>{isCurrentSongPlaying ? '⏸' : '▶'}</span>
+                <span>{isCurrentSongPlaying ? 'შეჩერება' : 'მოსმენა'}</span>
+              </button>
+              <button className={`btn-modal-fav ${isFavorite ? 'active' : ''}`} onClick={() => onToggleFavorite(song.id)}>
+                <span>{isFavorite ? '❤️' : '🤍'}</span>
+                <span>{isFavorite ? 'რჩეულებშია' : 'რჩეულებში დამატება'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 10. კომპონენტი: StatsBar (.map() მეთოდით)
+    function StatsBar({ totalSongs, favoritesCount, activeMood, popularCount }) {
+      const stats = [
+        { id: 1, icon: "🎵", value: totalSongs, label: "სულ სიმღერა" },
+        { id: 2, icon: "🔥", value: popularCount, label: "ტოპ ჰიტი" },
+        { id: 3, icon: "❤️", value: favoritesCount, label: "შენი რჩეული" },
+        { id: 4, icon: "✨", value: activeMood === "all" ? "ყველა" : activeMood, label: "აქტიური განწყობა" }
+      ];
+
+      return (
+        <div className="stats-bar-container">
+          {stats.map((item) => (
+            <div key={item.id} className="stat-card">
+              <div className="stat-icon">{item.icon}</div>
+              <div className="stat-info">
+                <span className="stat-value">{item.value}</span>
+                <span className="stat-label">{item.label}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // 11. კომპონენტი: Player (useState, useEffect, Audio)
+    function Player({ currentTrack, isPlaying, onTogglePlay, onNext, onPrev, isFavorite, onToggleFavorite }) {
+      const [currentTime, setCurrentTime] = useState(0);
+      const [duration, setDuration] = useState(0);
+      const [volume, setVolume] = useState(0.8);
+      const [isMuted, setIsMuted] = useState(false);
+      const audioRef = useRef(null);
+
+      useEffect(() => {
+        if (!audioRef.current || !currentTrack) return;
+        if (isPlaying) {
+          audioRef.current.play().catch((err) => console.log(err));
+        } else {
+          audioRef.current.pause();
+        }
+      }, [isPlaying, currentTrack]);
+
+      useEffect(() => {
+        if (audioRef.current) {
+          audioRef.current.volume = isMuted ? 0 : volume;
+        }
+      }, [volume, isMuted]);
+
+      if (!currentTrack) return null;
+
+      const formatTime = (timeInSec) => {
+        if (isNaN(timeInSec)) return "0:00";
+        const m = Math.floor(timeInSec / 60);
+        const s = Math.floor(timeInSec % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+      };
+
+      return (
+        <div className="music-player-bar">
+          <audio
+            ref={audioRef}
+            src={currentTrack.audioUrl}
+            onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
+            onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration || 0)}
+            onEnded={onNext}
+          />
+          <div className="player-track-info">
+            <div className="player-cover-wrap">
+              <img src={currentTrack.coverUrl} alt={currentTrack.title} className="player-cover" />
+              {isPlaying && (
+                <div className="equalizer">
+                  <span className="eq-bar"></span>
+                  <span className="eq-bar"></span>
+                  <span className="eq-bar"></span>
+                  <span className="eq-bar"></span>
+                </div>
+              )}
+            </div>
+            <div className="player-text">
+              <h5 className="player-title">{currentTrack.title}</h5>
+              <p className="player-artist">{currentTrack.artist}</p>
+            </div>
+            <button
+              className={`player-fav-btn ${isFavorite ? 'active' : ''}`}
+              onClick={() => onToggleFavorite(currentTrack.id)}
+            >
+              {isFavorite ? '❤️' : '🤍'}
+            </button>
+          </div>
+
+          <div className="player-controls">
+            <div className="control-buttons">
+              <button className="ctrl-btn" onClick={onPrev}>⏮</button>
+              <button className="play-toggle-btn" onClick={onTogglePlay}>
+                {isPlaying ? '⏸' : '▶'}
+              </button>
+              <button className="ctrl-btn" onClick={onNext}>⏭</button>
+            </div>
+            <div className="progress-container">
+              <span className="time-text">{formatTime(currentTime)}</span>
+              <input
+                type="range"
+                className="progress-bar-slider"
+                min="0"
+                max={duration || 100}
+                value={currentTime}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setCurrentTime(val);
+                  if (audioRef.current) audioRef.current.currentTime = val;
+                }}
+              />
+              <span className="time-text">{formatTime(duration)}</span>
+            </div>
+          </div>
+
+          <div className="player-volume-wrapper">
+            <button className="vol-icon-btn" onClick={() => setIsMuted(!isMuted)}>
+              {isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}
+            </button>
+            <input
+              type="range"
+              className="volume-slider"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              onChange={(e) => {
+                setVolume(Number(e.target.value));
+                setIsMuted(false);
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // 12. მთავარი App კომპონენტი (Parent)
+    function App() {
+      const [songs, setSongs] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [selectedCategory, setSelectedCategory] = useState('all');
+      const [searchQuery, setSearchQuery] = useState('');
+      const [activeTab, setActiveTab] = useState('home');
+      const [recommendedSong, setRecommendedSong] = useState(null);
+      const [recLoading, setRecLoading] = useState(false);
+      const [currentTrack, setCurrentTrack] = useState(null);
+      const [isPlaying, setIsPlaying] = useState(false);
+      const [favorites, setFavorites] = useState(() => {
+        try {
+          const s = localStorage.getItem('melomix_favs');
+          return s ? JSON.parse(s) : [1, 3, 14];
+        } catch { return [1, 3, 14]; }
+      });
+      const [currentUser, setCurrentUser] = useState(() => {
+        try {
+          const u = localStorage.getItem('melomix_user');
+          return u ? JSON.parse(u) : null;
+        } catch { return null; }
+      });
+      const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+      const [authMode, setAuthMode] = useState('login');
+      const [modalSong, setModalSong] = useState(null);
+      const [toast, setToast] = useState('');
+
+      useEffect(() => {
+        let mounted = true;
+        setLoading(true);
+        fetchSongsApi(selectedCategory, searchQuery).then((res) => {
+          if (mounted) {
+            setSongs(res.data);
+            setLoading(false);
+          }
+        });
+        return () => { mounted = false; };
+      }, [selectedCategory, searchQuery]);
+
+      useEffect(() => {
+        handleGenerateRec();
+      }, []);
+
+      useEffect(() => {
+        try { localStorage.setItem('melomix_favs', JSON.stringify(favorites)); } catch {}
+      }, [favorites]);
+
+      useEffect(() => {
+        try {
+          if (currentUser) localStorage.setItem('melomix_user', JSON.stringify(currentUser));
+          else localStorage.removeItem('melomix_user');
+        } catch {}
+      }, [currentUser]);
+
+      useEffect(() => {
+        if (currentTrack && isPlaying) {
+          document.title = `▶ ${currentTrack.title} - ${currentTrack.artist} | Melomix`;
+        } else {
+          document.title = "Melomix - მუსიკების შემომთავაზებელი & ამრჩევი";
+        }
+      }, [currentTrack, isPlaying]);
+
+      const showNotification = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(''), 2500);
+      };
+
+      const handleGenerateRec = async (mood = selectedCategory) => {
+        setRecLoading(true);
+        const res = await getSmartRecommendationApi(mood);
+        setRecommendedSong(res.recommendedSong);
+        setRecLoading(false);
+      };
+
+      const handlePlaySong = (song) => {
+        if (currentTrack?.id === song.id) {
+          setIsPlaying(!isPlaying);
+        } else {
+          setCurrentTrack(song);
+          setIsPlaying(true);
+          showNotification(`უკრავს: ${song.title} - ${song.artist}`);
+        }
+      };
+
+      const handleNext = () => {
+        if (!currentTrack || songs.length === 0) return;
+        const i = songs.findIndex((s) => s.id === currentTrack.id);
+        setCurrentTrack(songs[(i + 1) % songs.length]);
+        setIsPlaying(true);
+      };
+
+      const handlePrev = () => {
+        if (!currentTrack || songs.length === 0) return;
+        const i = songs.findIndex((s) => s.id === currentTrack.id);
+        setCurrentTrack(songs[(i - 1 + songs.length) % songs.length]);
+        setIsPlaying(true);
+      };
+
+      const handleToggleFav = (id) => {
+        setFavorites((prev) => {
+          if (prev.includes(id)) {
+            showNotification("ამოიშალა რჩეულებიდან");
+            return prev.filter((x) => x !== id);
+          } else {
+            showNotification("დაემატა რჩეულებში! ❤️");
+            return [...prev, id];
+          }
+        });
+      };
+
+      const handleOpenLogin = () => {
+        setAuthMode('login');
+        setIsAuthModalOpen(true);
+      };
+
+      const handleOpenSignIn = () => {
+        setAuthMode('signin');
+        setIsAuthModalOpen(true);
+      };
+
+      const handleAuthSuccess = (u) => {
+        setCurrentUser(u);
+        showNotification(`კეთილი იყოს თქვენი მობრძანება, ${u.name}! 👋`);
+      };
+
+      const handleLogout = () => {
+        setCurrentUser(null);
+        showNotification("სისტემიდან გამოხვედით");
+      };
+
+      const favoriteSongs = INITIAL_SONGS.filter((s) => favorites.includes(s.id));
+
+      return (
+        <div className="app-container">
+          <Navbar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            favoritesCount={favorites.length}
+            user={currentUser}
+            onOpenLogin={handleOpenLogin}
+            onOpenSignIn={handleOpenSignIn}
+            onLogout={handleLogout}
+          />
+
+          <main className="main-content">
+            {activeTab === 'home' && (
+              <>
+                <HeroBanner
+                  onFindRecommendation={() => setActiveTab('recommender')}
+                  onSelectPopular={() => setSelectedCategory('popular')}
+                  onSurpriseMe={() => {
+                    const rnd = INITIAL_SONGS[Math.floor(Math.random() * INITIAL_SONGS.length)];
+                    handlePlaySong(rnd);
+                  }}
+                />
+
+                <MoodSelector
+                  categories={MOOD_CATEGORIES}
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={(id) => {
+                    setSelectedCategory(id);
+                    handleGenerateRec(id);
+                  }}
+                />
+
+                <RecommendationBox
+                  song={recommendedSong}
+                  isPlaying={isPlaying}
+                  currentTrack={currentTrack}
+                  onPlay={handlePlaySong}
+                  onRefresh={() => handleGenerateRec(selectedCategory)}
+                  isFavorite={favorites.includes(recommendedSong?.id)}
+                  onToggleFavorite={handleToggleFav}
+                  onViewDetails={(s) => setModalSong(s)}
+                  loading={recLoading}
+                />
+
+                <MusicList
+                  songs={songs}
+                  currentTrack={currentTrack}
+                  isPlaying={isPlaying}
+                  favorites={favorites}
+                  onPlaySong={handlePlaySong}
+                  onToggleFavorite={handleToggleFav}
+                  onViewDetails={(s) => setModalSong(s)}
+                  loading={loading}
+                  title={
+                    searchQuery
+                      ? `ძიების შედეგები ("${searchQuery}")`
+                      : selectedCategory === 'all'
+                      ? 'პოპულარული და რეკომენდებული მუსიკები'
+                      : `კატეგორია: ${selectedCategory}`
+                  }
+                  onResetFilters={() => {
+                    setSelectedCategory('all');
+                    setSearchQuery('');
+                  }}
+                />
+              </>
+            )}
+
+            {activeTab === 'recommender' && (
+              <div className="tab-view">
+                <div className="view-header">
+                  <div>
+                    <h2 className="view-heading">✨ ჭკვიანი მუსიკალური ამრჩევი</h2>
+                    <p className="view-sub">მიიღეთ პერსონალიზებული რეკომენდაცია განწყობის მიხედვით</p>
+                  </div>
+                </div>
+
+                <MoodSelector
+                  categories={MOOD_CATEGORIES}
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={(id) => {
+                    setSelectedCategory(id);
+                    handleGenerateRec(id);
+                  }}
+                />
+
+                <RecommendationBox
+                  song={recommendedSong}
+                  isPlaying={isPlaying}
+                  currentTrack={currentTrack}
+                  onPlay={handlePlaySong}
+                  onRefresh={() => handleGenerateRec(selectedCategory)}
+                  isFavorite={favorites.includes(recommendedSong?.id)}
+                  onToggleFavorite={handleToggleFav}
+                  onViewDetails={(s) => setModalSong(s)}
+                  loading={recLoading}
+                />
+
+                <MusicList
+                  songs={songs.filter((s) => s.id !== recommendedSong?.id)}
+                  currentTrack={currentTrack}
+                  isPlaying={isPlaying}
+                  favorites={favorites}
+                  onPlaySong={handlePlaySong}
+                  onToggleFavorite={handleToggleFav}
+                  onViewDetails={(s) => setModalSong(s)}
+                  loading={loading}
+                  title="დამატებითი რეკომენდაციები ამ განწყობისთვის"
+                />
+              </div>
+            )}
+
+            {activeTab === 'favorites' && (
+              <div className="tab-view">
+                <div className="view-header">
+                  <div>
+                    <h2 className="view-heading">❤️ შენი რჩეული სიმღერები</h2>
+                    <p className="view-sub">თქვენ მიერ მოწონებული სიმღერების კოლექცია</p>
+                  </div>
+                </div>
+
+                <MusicList
+                  songs={favoriteSongs}
+                  currentTrack={currentTrack}
+                  isPlaying={isPlaying}
+                  favorites={favorites}
+                  onPlaySong={handlePlaySong}
+                  onToggleFavorite={handleToggleFav}
+                  onViewDetails={(s) => setModalSong(s)}
+                  loading={false}
+                  title="რჩეულები"
+                  onResetFilters={() => setActiveTab('home')}
+                />
+              </div>
+            )}
+
+            {activeTab === 'stats' && (
+              <div className="tab-view">
+                <div className="view-header">
+                  <div>
+                    <h2 className="view-heading">📊 მუსიკალური ანალიტიკა</h2>
+                    <p className="view-sub">საიტის მონაცემთა ბაზისა და თქვენი აქტივობის სტატისტიკა</p>
+                  </div>
+                </div>
+
+                <StatsBar
+                  totalSongs={INITIAL_SONGS.length}
+                  favoritesCount={favorites.length}
+                  activeMood={selectedCategory}
+                  popularCount={INITIAL_SONGS.filter((s) => s.isPopular).length}
+                />
+
+                <MusicList
+                  songs={INITIAL_SONGS.filter((s) => s.isPopular)}
+                  currentTrack={currentTrack}
+                  isPlaying={isPlaying}
+                  favorites={favorites}
+                  onPlaySong={handlePlaySong}
+                  onToggleFavorite={handleToggleFav}
+                  onViewDetails={(s) => setModalSong(s)}
+                  loading={false}
+                  title="ყველა დროის ყველაზე პოპულარული ჰიტები"
+                />
+              </div>
+            )}
+          </main>
+
+          {modalSong && (
+            <MusicModal
+              song={modalSong}
+              onClose={() => setModalSong(null)}
+              isPlaying={isPlaying}
+              currentTrack={currentTrack}
+              onPlay={handlePlaySong}
+              isFavorite={favorites.includes(modalSong.id)}
+              onToggleFavorite={handleToggleFav}
+            />
+          )}
+
+          <AuthModal
+            isOpen={isAuthModalOpen}
+            initialMode={authMode}
+            onClose={() => setIsAuthModalOpen(false)}
+            onAuthSuccess={handleAuthSuccess}
+          />
+
+          <Player
+            currentTrack={currentTrack}
+            isPlaying={isPlaying}
+            onTogglePlay={() => setIsPlaying(!isPlaying)}
+            onNext={handleNext}
+            onPrev={handlePrev}
+            isFavorite={favorites.includes(currentTrack?.id)}
+            onToggleFavorite={handleToggleFav}
+          />
+
+          {toast && (
+            <div className="toast-notice">
+              <span>🔔</span> <span>{toast}</span>
+            </div>
+          )}
+
+          <footer className="app-footer">
+            <p>Melomix © 2026 — მუსიკების შემომთავაზებელი და ამრჩევი პლატფორმა • შექმნილია React-ზე</p>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
+
